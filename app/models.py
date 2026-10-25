@@ -20,4 +20,12 @@ class Record(Base):
     cover_url = Column(String, nullable=True)
     notes = Column(String, nullable=True)
     date_added = Column(String, nullable=True)
+    status = Column(String, nullable=False, server_default="owned", index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Setting(Base):
+    __tablename__ = "settings"
+
+    key = Column(String, primary_key=True)
+    value = Column(String, nullable=True)

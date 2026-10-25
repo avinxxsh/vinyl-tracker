@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Settings &middot; Vinyl Tracker{% endblock %}
+{% block content %}
+  <h2>Settings</h2>
+
+  {% if request.query_params.get('saved') %}
+    <p class="flash">Saved.</p>
+  {% endif %}
+
+  <form method="post" action="/settings" class="record-form">
+    <label>Currency
+      <select name="currency">
+        {% for code, symbol in currencies.items() %}
+          <option value="{{ code }}" {% if code == currency_code %}selected{% endif %}>{{ code }} ({{ symbol }})</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="form-actions">
+      <button type="submit">Save</button>
+    </div>
+  </form>
+
+  <p class="help">
+    This sets how prices and totals are displayed across the whole collection.
+    It doesn't convert existing purchase prices &mdash; enter new prices directly in this currency.
+  </p>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Wishlist &middot; Vinyl Tracker{% endblock %}
+{% block content %}
+
+  <form class="toolbar" method="get" action="/wishlist">
+    <input type="text" name="q" placeholder="Search artist, title, label&hellip;" value="{{ q }}">
+    <button type="submit">Apply</button>
+    {% if q %}<a class="button-link" href="/wishlist">Clear</a>{% endif %}
+  </form>
+
+  <div class="summary-bar">
+    <span>{{ count }} wanted record{{ 's' if count != 1 else '' }}</span>
+    <a class="button-link" href="/records/new?status=wanted">Add to Wishlist</a>
+  </div>
+
+  <div class="grid">
+    {% for r in records %}
+      <div class="card">
+        {% if r.cover_url %}
+          <img class="cover" src="{{ r.cover_url }}" alt="{{ r.title }} cover">
+        {% else %}
+          <div class="cover cover-placeholder">&#9835;</div>
+        {% endif %}
+        <div class="card-body">
+          <h3>{{ r.artist }}</h3>
+          <p class="title">{{ r.title }}</p>
+          <p class="meta">
+            {{ r.label or "Unknown label" }}
+            {% if r.pressing_year %} &middot; {{ r.pressing_year }}{% endif %}
+          </p>
+          <p class="meta">
+            {% if r.genre %}<span class="tag">{{ r.genre }}</span>{% endif %}
+          </p>
+          {% if r.notes %}<p class="meta">{{ r.notes }}</p>{% endif %}
+          <div class="card-actions">
+            <a href="/records/{{ r.id }}/edit">Edit</a>
+            {% if r.discogs_release_id %}
+              <form method="post" action="/records/{{ r.id }}/enrich" style="display:inline">
+                <button type="submit" class="link-button">Enrich</button>
+              </form>
+            {% endif %}
+            <form method="post" action="/records/{{ r.id }}/mark-owned" style="display:inline">
+              <button type="submit" class="link-button">Move to Collection</button>
+            </form>
+            <form method="post" action="/records/{{ r.id }}/delete" style="display:inline"
+                  onsubmit="return confirm('Remove {{ r.artist }} &mdash; {{ r.title }} from your wishlist?');">
+              <button type="submit" class="link-button danger">Delete</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <p class="empty">Nothing on your wishlist yet. <a href="/records/new?status=wanted">Add one</a>.</p>
+    {% endfor %}
+  </div>
+{% endblock %}

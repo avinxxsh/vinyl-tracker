@@ -7,6 +7,9 @@ A personal vinyl record collection tracker built with FastAPI, SQLite, and serve
 - Log records with artist, title, label, genre, pressing year, condition, and purchase price
 - Search across artist/title/label, filter by genre, sort by artist/year/price/date added
 - Total collection value + a stats page with value broken down by genre
+- A wishlist for records you want but don't own yet, with a one-click "Move to Collection" once bought
+- A settings page to pick your collection's currency (defaults to INR)
+- Look up a release on Discogs when adding a record — search by artist/title or paste a release URL/ID — to autofill artist, title, label, genre, year, and cover art
 - Import a Discogs "Export Collection" CSV (artist, title, label, year, condition, release ID)
 - Optional enrichment: pull genre and cover art from the Discogs API using the release ID
 
@@ -19,7 +22,7 @@ pip install -r requirements.txt
 ```
 
 (Optional) Copy `.env.example` to `.env` and set `DISCOGS_TOKEN` to a personal access token from
-https://www.discogs.com/settings/developers for higher API rate limits during enrichment. It works without a token too, just slower.
+https://www.discogs.com/settings/developers. Enrichment and pasting a release URL/ID work without a token (just at a lower rate limit); searching Discogs by artist/title when adding a record requires a token, since that endpoint needs authentication.
 
 ## Run
 

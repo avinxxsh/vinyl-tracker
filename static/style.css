@@ -161,6 +161,31 @@ button.link-button.danger { color: #e05b5b; }
 
 .help { color: var(--text-dim); max-width: 640px; line-height: 1.5; }
 
+.discogs-lookup {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  max-width: 480px;
+}
+.discogs-lookup h3 { margin: 0 0 10px; font-size: 0.95rem; }
+.lookup-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.lookup-row input { flex: 1; }
+.discogs-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.discogs-result:last-child { border-bottom: none; }
+.discogs-result img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+.discogs-result > div:nth-child(2) { flex: 1; min-width: 0; }
+.discogs-result-title { font-size: 0.85rem; }
+.discogs-result-meta { font-size: 0.75rem; color: var(--text-dim); }
+.discogs-result button { font-size: 0.8rem; padding: 6px 10px; flex-shrink: 0; }
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));

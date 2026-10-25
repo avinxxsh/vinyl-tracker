@@ -21,7 +21,7 @@
 
   <div class="summary-bar">
     <span>{{ count }} record{{ 's' if count != 1 else '' }}</span>
-    <span class="total-value">Total value: ${{ "%.2f"|format(total_value) }}</span>
+    <span class="total-value">Total value: {{ currency_symbol }}{{ "%.2f"|format(total_value) }}</span>
     <form method="post" action="/enrich-missing" style="display:inline">
       <button type="submit" class="secondary">Fetch missing covers/genres from Discogs</button>
     </form>
@@ -51,7 +51,7 @@
             {% if r.condition %}<span class="tag">{{ r.condition }}</span>{% endif %}
           </p>
           <p class="price">
-            {% if r.purchase_price is not none %}${{ "%.2f"|format(r.purchase_price) }}{% else %}&mdash;{% endif %}
+            {% if r.purchase_price is not none %}{{ currency_symbol }}{{ "%.2f"|format(r.purchase_price) }}{% else %}&mdash;{% endif %}
           </p>
           <div class="card-actions">
             <a href="/records/{{ r.id }}/edit">Edit</a>

@@ -1,22 +1,41 @@
 {% extends "base.html" %}
 {% block title %}{{ "Edit" if record else "Add" }} Record &middot; Vinyl Tracker{% endblock %}
 {% block content %}
-  <h2>{{ "Edit Record" if record else "Add Record" }}</h2>
+  <h2>{{ "Edit Record" if record else ("Add to Wishlist" if default_status == "wanted" else "Add Record") }}</h2>
+
+  {% if not record %}
+  <div class="discogs-lookup">
+    <h3>Look up on Discogs</h3>
+    <div class="lookup-row">
+      <input type="text" id="discogs-query" placeholder="Search artist or title&hellip;">
+      <button type="button" id="discogs-search-btn" class="secondary">Search</button>
+    </div>
+    <div id="discogs-results"></div>
+    <div class="lookup-row">
+      <input type="text" id="discogs-url" placeholder="&hellip;or paste a Discogs release URL or ID">
+      <button type="button" id="discogs-fetch-btn" class="secondary">Fetch</button>
+    </div>
+    <p id="discogs-message" class="help"></p>
+  </div>
+  {% endif %}
+
   <form method="post" action="{{ action }}" class="record-form">
+    <input type="hidden" name="status" value="{{ record.status if record else default_status }}">
+    <input type="hidden" id="f-cover_url" name="cover_url" value="{{ record.cover_url if record else '' }}">
     <label>Artist *
-      <input type="text" name="artist" required value="{{ record.artist if record else '' }}">
+      <input type="text" id="f-artist" name="artist" required value="{{ record.artist if record else '' }}">
     </label>
     <label>Title *
-      <input type="text" name="title" required value="{{ record.title if record else '' }}">
+      <input type="text" id="f-title" name="title" required value="{{ record.title if record else '' }}">
     </label>
     <label>Label
-      <input type="text" name="label" value="{{ record.label if record else '' }}">
+      <input type="text" id="f-label" name="label" value="{{ record.label if record else '' }}">
     </label>
     <label>Genre
-      <input type="text" name="genre" value="{{ record.genre if record else '' }}">
+      <input type="text" id="f-genre" name="genre" value="{{ record.genre if record else '' }}">
     </label>
     <label>Pressing year
-      <input type="number" name="pressing_year" value="{{ record.pressing_year if record else '' }}">
+      <input type="number" id="f-pressing_year" name="pressing_year" value="{{ record.pressing_year if record else '' }}">
     </label>
     <label>Media condition
       <select name="condition">
@@ -34,18 +53,122 @@
         {% endfor %}
       </select>
     </label>
-    <label>Purchase price (USD)
+    <label>Purchase price ({{ currency_code }})
       <input type="number" step="0.01" name="purchase_price" value="{{ record.purchase_price if record else '' }}">
     </label>
     <label>Discogs release ID
-      <input type="number" name="discogs_release_id" value="{{ record.discogs_release_id if record else '' }}">
+      <input type="number" id="f-discogs_release_id" name="discogs_release_id" value="{{ record.discogs_release_id if record else '' }}">
     </label>
     <label>Notes
       <textarea name="notes">{{ record.notes if record else '' }}</textarea>
     </label>
     <div class="form-actions">
       <button type="submit">{{ "Save" if record else "Add Record" }}</button>
-      <a class="button-link" href="/">Cancel</a>
+      <a class="button-link" href="{{ '/wishlist' if (record.status if record else default_status) == 'wanted' else '/' }}">Cancel</a>
     </div>
   </form>
+
+  {% if not record %}
+  <script>
+    (function () {
+      const messageEl = document.getElementById("discogs-message");
+      const resultsEl = document.getElementById("discogs-results");
+
+      function setMessage(text) {
+        messageEl.textContent = text;
+      }
+
+      function applyRelease(data) {
+        if (data.artist) document.getElementById("f-artist").value = data.artist;
+        if (data.title) document.getElementById("f-title").value = data.title;
+        if (data.label) document.getElementById("f-label").value = data.label;
+        if (data.genre) document.getElementById("f-genre").value = data.genre;
+        if (data.pressing_year) document.getElementById("f-pressing_year").value = data.pressing_year;
+        if (data.discogs_release_id) document.getElementById("f-discogs_release_id").value = data.discogs_release_id;
+        if (data.cover_url) document.getElementById("f-cover_url").value = data.cover_url;
+        setMessage("Filled in from Discogs.");
+        resultsEl.innerHTML = "";
+      }
+
+      function fetchRelease(releaseId) {
+        setMessage("Fetching release " + releaseId + "…");
+        fetch("/discogs/release/" + encodeURIComponent(releaseId))
+          .then((r) => {
+            if (!r.ok) throw new Error("not_found");
+            return r.json();
+          })
+          .then(applyRelease)
+          .catch(() => setMessage("Couldn't find that release on Discogs."));
+      }
+
+      document.getElementById("discogs-fetch-btn").addEventListener("click", function () {
+        const raw = document.getElementById("discogs-url").value.trim();
+        const match = raw.match(/(\d+)/);
+        if (!match) {
+          setMessage("Couldn't find a release ID in that.");
+          return;
+        }
+        fetchRelease(match[1]);
+      });
+
+      document.getElementById("discogs-search-btn").addEventListener("click", function () {
+        const q = document.getElementById("discogs-query").value.trim();
+        if (!q) {
+          setMessage("Type something to search for first.");
+          return;
+        }
+        setMessage("Searching…");
+        resultsEl.innerHTML = "";
+        fetch("/discogs/search?q=" + encodeURIComponent(q))
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.error === "no_token") {
+              setMessage("Search needs a DISCOGS_TOKEN set in .env (restart the server after adding it). Pasting a release URL/ID below works without one.");
+              return;
+            }
+            if (!data.results || data.results.length === 0) {
+              setMessage("No matches found.");
+              return;
+            }
+            setMessage("Pick a match:");
+            data.results.forEach((item) => {
+              const row = document.createElement("div");
+              row.className = "discogs-result";
+
+              if (item.thumb) {
+                const img = document.createElement("img");
+                img.src = item.thumb;
+                img.alt = "";
+                row.appendChild(img);
+              }
+
+              const info = document.createElement("div");
+              const titleEl = document.createElement("div");
+              titleEl.className = "discogs-result-title";
+              titleEl.textContent = item.title || "Unknown";
+              info.appendChild(titleEl);
+
+              const metaEl = document.createElement("div");
+              metaEl.className = "discogs-result-meta";
+              metaEl.textContent = [item.label, item.year].filter(Boolean).join(" · ");
+              info.appendChild(metaEl);
+
+              row.appendChild(info);
+
+              const useBtn = document.createElement("button");
+              useBtn.type = "button";
+              useBtn.textContent = "Use this";
+              useBtn.addEventListener("click", function () {
+                fetchRelease(item.id);
+              });
+              row.appendChild(useBtn);
+
+              resultsEl.appendChild(row);
+            });
+          })
+          .catch(() => setMessage("Discogs search failed."));
+      });
+    })();
+  </script>
+  {% endif %}
 {% endblock %}
