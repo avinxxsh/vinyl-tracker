@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Stats &middot; Vinyl Tracker{% endblock %}
+{% block content %}
+  <h2>Collection Value</h2>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-value">{{ count }}</span>
+      <span class="stat-label">Records</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">${{ "%.2f"|format(total_value) }}</span>
+      <span class="stat-label">Total value</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">${{ "%.2f"|format(avg_price) }}</span>
+      <span class="stat-label">Average price</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{{ missing_covers }}</span>
+      <span class="stat-label">Missing cover art</span>
+    </div>
+  </div>
+
+  <h3>By genre</h3>
+  <table class="stats-table">
+    <thead><tr><th>Genre</th><th>Records</th><th>Value</th></tr></thead>
+    <tbody>
+      {% for g, data in by_genre.items() %}
+        <tr>
+          <td>{{ g }}</td>
+          <td>{{ data.count }}</td>
+          <td>${{ "%.2f"|format(data.value) }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3">No records yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

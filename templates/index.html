@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Collection &middot; Vinyl Tracker{% endblock %}
+{% block content %}
+
+  <form class="toolbar" method="get" action="/">
+    <input type="text" name="q" placeholder="Search artist, title, label&hellip;" value="{{ q }}">
+    <select name="genre">
+      <option value="">All genres</option>
+      {% for g in genres %}
+        <option value="{{ g }}" {% if g == genre %}selected{% endif %}>{{ g }}</option>
+      {% endfor %}
+    </select>
+    <select name="sort">
+      {% for key, (clause, label) in sort_options.items() %}
+        <option value="{{ key }}" {% if key == sort %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Apply</button>
+    {% if q or genre %}<a class="button-link" href="/">Clear</a>{% endif %}
+  </form>
+
+  <div class="summary-bar">
+    <span>{{ count }} record{{ 's' if count != 1 else '' }}</span>
+    <span class="total-value">Total value: ${{ "%.2f"|format(total_value) }}</span>
+    <form method="post" action="/enrich-missing" style="display:inline">
+      <button type="submit" class="secondary">Fetch missing covers/genres from Discogs</button>
+    </form>
+  </div>
+
+  {% if request.query_params.get('enriched') %}
+    <p class="flash">Enriched {{ request.query_params.get('enriched') }} record(s) from Discogs.</p>
+  {% endif %}
+
+  <div class="grid">
+    {% for r in records %}
+      <div class="card">
+        {% if r.cover_url %}
+          <img class="cover" src="{{ r.cover_url }}" alt="{{ r.title }} cover">
+        {% else %}
+          <div class="cover cover-placeholder">&#9835;</div>
+        {% endif %}
+        <div class="card-body">
+          <h3>{{ r.artist }}</h3>
+          <p class="title">{{ r.title }}</p>
+          <p class="meta">
+            {{ r.label or "Unknown label" }}
+            {% if r.pressing_year %} &middot; {{ r.pressing_year }}{% endif %}
+          </p>
+          <p class="meta">
+            {% if r.genre %}<span class="tag">{{ r.genre }}</span>{% endif %}
+            {% if r.condition %}<span class="tag">{{ r.condition }}</span>{% endif %}
+          </p>
+          <p class="price">
+            {% if r.purchase_price is not none %}${{ "%.2f"|format(r.purchase_price) }}{% else %}&mdash;{% endif %}
+          </p>
+          <div class="card-actions">
+            <a href="/records/{{ r.id }}/edit">Edit</a>
+            {% if r.discogs_release_id %}
+              <form method="post" action="/records/{{ r.id }}/enrich" style="display:inline">
+                <button type="submit" class="link-button">Enrich</button>
+              </form>
+            {% endif %}
+            <form method="post" action="/records/{{ r.id }}/delete" style="display:inline"
+                  onsubmit="return confirm('Delete {{ r.artist }} &mdash; {{ r.title }}?');">
+              <button type="submit" class="link-button danger">Delete</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <p class="empty">No records yet. <a href="/records/new">Add one</a> or <a href="/import">import your Discogs collection</a>.</p>
+    {% endfor %}
+  </div>
+{% endblock %}
