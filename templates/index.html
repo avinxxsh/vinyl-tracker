@@ -27,6 +27,10 @@
     </form>
   </div>
 
+  {% if unconverted %}
+    <p class="flash warn">{{ unconverted }} record{{ 's' if unconverted != 1 else '' }} not included in the total &mdash; exchange rate unavailable for that currency. Try <a href="/settings">refreshing rates</a>.</p>
+  {% endif %}
+
   {% if request.query_params.get('enriched') %}
     <p class="flash">Enriched {{ request.query_params.get('enriched') }} record(s) from Discogs.</p>
   {% endif %}
@@ -51,7 +55,17 @@
             {% if r.condition %}<span class="tag">{{ r.condition }}</span>{% endif %}
           </p>
           <p class="price">
-            {% if r.purchase_price is not none %}{{ currency_symbol }}{{ "%.2f"|format(r.purchase_price) }}{% else %}&mdash;{% endif %}
+            {% if r.display_price is not none %}
+              {{ currency_symbol }}{{ "%.2f"|format(r.display_price) }}
+              {% if r.price_currency and r.price_currency != currency_code %}
+                <span class="price-original">(paid {{ currencies.get(r.price_currency, r.price_currency) }}{{ "%.2f"|format(r.purchase_price) }})</span>
+              {% endif %}
+            {% elif r.purchase_price is not none %}
+              {{ currencies.get(r.price_currency, r.price_currency) }}{{ "%.2f"|format(r.purchase_price) }}
+              <span class="price-original">(rate unavailable)</span>
+            {% else %}
+              &mdash;
+            {% endif %}
           </p>
           <div class="card-actions">
             <a href="/records/{{ r.id }}/edit">Edit</a>

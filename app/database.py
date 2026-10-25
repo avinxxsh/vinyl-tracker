@@ -17,4 +17,16 @@ def migrate(engine):
         cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(records)").fetchall()}
         if "status" not in cols:
             conn.exec_driver_sql("ALTER TABLE records ADD COLUMN status TEXT NOT NULL DEFAULT 'owned'")
+        if "price_currency" not in cols:
+            conn.exec_driver_sql("ALTER TABLE records ADD COLUMN price_currency TEXT")
+            # Existing prices were entered under whatever the display currency
+            # was set to at the time, so that's the best guess for what they're in.
+            row = conn.exec_driver_sql(
+                "SELECT value FROM settings WHERE key = 'currency'"
+            ).fetchone()
+            default_currency = row[0] if row and row[0] else "INR"
+            conn.exec_driver_sql(
+                "UPDATE records SET price_currency = ? WHERE price_currency IS NULL",
+                (default_currency,),
+            )
         conn.commit()

@@ -103,6 +103,12 @@ button.link-button.danger { color: #e05b5b; }
   border-radius: 6px;
   margin-bottom: 16px;
 }
+.flash.warn {
+  background: #3a2f20;
+  border-color: #5c4a2e;
+  color: #e3c7b7;
+}
+.flash a { color: inherit; text-decoration: underline; }
 
 .grid {
   display: grid;
@@ -140,6 +146,7 @@ button.link-button.danger { color: #e05b5b; }
   font-size: 0.75rem;
 }
 .price { font-weight: 700; margin: 6px 0; }
+.price-original { font-weight: 400; font-size: 0.75rem; color: var(--text-dim); display: block; }
 .card-actions { display: flex; gap: 12px; margin-top: 4px; font-size: 0.85rem; }
 
 .empty { color: var(--text-dim); grid-column: 1 / -1; }
@@ -157,6 +164,10 @@ button.link-button.danger { color: #e05b5b; }
   font-size: 0.9rem;
   color: var(--text-dim);
 }
+.price-row { display: flex; gap: 8px; }
+.price-row input { flex: 1; }
+.price-row select { width: 90px; }
+.hint { font-size: 0.75rem; color: var(--text-dim); font-weight: 400; }
 .form-actions { display: flex; gap: 12px; align-items: center; }
 
 .help { color: var(--text-dim); max-width: 640px; line-height: 1.5; }

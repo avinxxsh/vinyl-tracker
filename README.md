@@ -8,7 +8,7 @@ A personal vinyl record collection tracker built with FastAPI, SQLite, and serve
 - Search across artist/title/label, filter by genre, sort by artist/year/price/date added
 - Total collection value + a stats page with value broken down by genre
 - A wishlist for records you want but don't own yet, with a one-click "Move to Collection" once bought
-- A settings page to pick your collection's currency (defaults to INR)
+- Per-record currency with live conversion: each record remembers what currency it was actually paid in, and a collection-wide display currency (defaults to INR) converts everything for totals/stats using daily exchange rates — nothing is reinterpreted or lost, just converted for viewing
 - Look up a release on Discogs when adding a record — search by artist/title or paste a release URL/ID — to autofill artist, title, label, genre, year, and cover art
 - Import a Discogs "Export Collection" CSV (artist, title, label, year, condition, release ID)
 - Optional enrichment: pull genre and cover art from the Discogs API using the release ID
@@ -33,6 +33,10 @@ uvicorn app.main:app --reload
 Then open http://127.0.0.1:8000
 
 The SQLite database (`vinyl.db`) is created automatically on first run.
+
+Exchange rates come from [open.er-api.com](https://open.er-api.com) (free, no key required) and are cached
+for 12 hours. If a record's currency matches your display currency, no network call happens at all — rates
+are only fetched when an actual conversion is needed, and a stale cache is used if the API is unreachable.
 
 ## Importing your Discogs collection
 

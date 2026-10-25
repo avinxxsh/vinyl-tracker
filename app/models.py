@@ -16,6 +16,7 @@ class Record(Base):
     condition = Column(String, nullable=True)
     sleeve_condition = Column(String, nullable=True)
     purchase_price = Column(Float, nullable=True)
+    price_currency = Column(String, nullable=True)
     discogs_release_id = Column(Integer, nullable=True, index=True)
     cover_url = Column(String, nullable=True)
     notes = Column(String, nullable=True)

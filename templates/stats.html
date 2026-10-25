@@ -2,6 +2,11 @@
 {% block title %}Stats &middot; Vinyl Tracker{% endblock %}
 {% block content %}
   <h2>Collection Value</h2>
+
+  {% if unconverted %}
+    <p class="flash warn">{{ unconverted }} record{{ 's' if unconverted != 1 else '' }} excluded from these totals &mdash; exchange rate unavailable for that currency. Try <a href="/settings">refreshing rates</a>.</p>
+  {% endif %}
+
   <div class="stats-grid">
     <div class="stat-card">
       <span class="stat-value">{{ count }}</span>

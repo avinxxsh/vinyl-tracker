@@ -53,8 +53,16 @@
         {% endfor %}
       </select>
     </label>
-    <label>Purchase price ({{ currency_code }})
-      <input type="number" step="0.01" name="purchase_price" value="{{ record.purchase_price if record else '' }}">
+    <label>Purchase price
+      <div class="price-row">
+        <input type="number" step="0.01" name="purchase_price" value="{{ record.purchase_price if record else '' }}" placeholder="Amount">
+        <select name="price_currency">
+          {% for code in currencies %}
+            <option value="{{ code }}" {% if (record.price_currency if record and record.price_currency else currency_code) == code %}selected{% endif %}>{{ code }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <span class="hint">The currency you actually paid in &mdash; it'll be converted for display if different from your collection currency.</span>
     </label>
     <label>Discogs release ID
       <input type="number" id="f-discogs_release_id" name="discogs_release_id" value="{{ record.discogs_release_id if record else '' }}">

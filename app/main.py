@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app import csv_import, discogs, models, settings
+from app import csv_import, discogs, exchange_rates, models, settings
 from app.database import Base, SessionLocal, engine, migrate
 
 Base.metadata.create_all(bind=engine)
@@ -65,9 +65,12 @@ def to_float(value: str) -> float | None:
 
 def record_from_form(
     artist, title, label, genre, pressing_year, condition,
-    sleeve_condition, purchase_price, discogs_release_id, notes,
-    cover_url, status,
+    sleeve_condition, purchase_price, price_currency, discogs_release_id, notes,
+    cover_url, status, fallback_currency,
 ) -> dict:
+    code = price_currency.strip()
+    if code not in settings.CURRENCIES:
+        code = fallback_currency
     return {
         "artist": artist.strip(),
         "title": title.strip(),
@@ -77,11 +80,38 @@ def record_from_form(
         "condition": condition.strip() or None,
         "sleeve_condition": sleeve_condition.strip() or None,
         "purchase_price": to_float(purchase_price),
+        "price_currency": code,
         "discogs_release_id": to_int(discogs_release_id),
         "notes": notes.strip() or None,
         "cover_url": cover_url.strip() or None,
         "status": "wanted" if status.strip() == "wanted" else "owned",
     }
+
+
+def attach_converted_prices(records, display_currency: str, db: Session):
+    """Convert each record's purchase_price (in whatever currency it was
+    actually paid in) into the display currency, setting a non-persisted
+    `display_price` attribute. Only hits the exchange-rate API if at least
+    one record's currency actually differs from the display currency."""
+    needs_rates = any(
+        r.purchase_price is not None and (r.price_currency or display_currency) != display_currency
+        for r in records
+    )
+    rates = exchange_rates.get_rates(db) if needs_rates else {}
+
+    total = 0.0
+    unconverted = 0
+    for r in records:
+        converted = exchange_rates.convert(
+            r.purchase_price, r.price_currency or display_currency, display_currency, rates
+        )
+        r.display_price = converted
+        if r.purchase_price is not None:
+            if converted is None:
+                unconverted += 1
+            else:
+                total += converted
+    return total, unconverted
 
 
 @app.get("/")
@@ -108,7 +138,8 @@ def index(
     order_clause, _ = SORT_OPTIONS.get(sort, SORT_OPTIONS["artist"])
     records = query.order_by(order_clause).all()
 
-    total_value = sum(r.purchase_price or 0 for r in records)
+    display_currency = settings.get_currency(db)
+    total_value, unconverted = attach_converted_prices(records, display_currency, db)
 
     genres = [
         g[0]
@@ -128,6 +159,7 @@ def index(
         records=records, q=q, genre=genre, sort=sort,
         sort_options=SORT_OPTIONS, genres=genres,
         total_value=total_value, count=len(records),
+        unconverted=unconverted, currencies=settings.CURRENCIES,
     )
 
 
@@ -151,7 +183,8 @@ def wishlist(request: Request, q: str = "", db: Session = Depends(get_db)):
 def stats(request: Request, db: Session = Depends(get_db)):
     records = db.query(models.Record).filter(models.Record.status == "owned").all()
     count = len(records)
-    total_value = sum(r.purchase_price or 0 for r in records)
+    display_currency = settings.get_currency(db)
+    total_value, unconverted = attach_converted_prices(records, display_currency, db)
     avg_price = total_value / count if count else 0
 
     by_genre: dict[str, dict] = {}
@@ -159,7 +192,8 @@ def stats(request: Request, db: Session = Depends(get_db)):
         g = r.genre or "Unknown"
         entry = by_genre.setdefault(g, {"count": 0, "value": 0.0})
         entry["count"] += 1
-        entry["value"] += r.purchase_price or 0
+        if r.display_price is not None:
+            entry["value"] += r.display_price
     by_genre = dict(sorted(by_genre.items(), key=lambda kv: kv[1]["value"], reverse=True))
 
     missing_covers = sum(1 for r in records if r.discogs_release_id and not r.cover_url)
@@ -167,13 +201,16 @@ def stats(request: Request, db: Session = Depends(get_db)):
     return render(
         "stats.html", request, db,
         count=count, total_value=total_value, avg_price=avg_price,
-        by_genre=by_genre, missing_covers=missing_covers,
+        by_genre=by_genre, missing_covers=missing_covers, unconverted=unconverted,
     )
 
 
 @app.get("/settings")
 def settings_form(request: Request, db: Session = Depends(get_db)):
-    return render("settings.html", request, db, currencies=settings.CURRENCIES)
+    return render(
+        "settings.html", request, db,
+        currencies=settings.CURRENCIES, rates_updated=exchange_rates.last_updated(db),
+    )
 
 
 @app.post("/settings")
@@ -182,12 +219,19 @@ def update_settings(currency: str = Form(...), db: Session = Depends(get_db)):
     return RedirectResponse("/settings?saved=1", status_code=303)
 
 
+@app.post("/settings/refresh-rates")
+def refresh_rates(db: Session = Depends(get_db)):
+    exchange_rates.get_rates(db, force=True)
+    return RedirectResponse("/settings?rates_refreshed=1", status_code=303)
+
+
 @app.get("/records/new")
 def new_record_form(request: Request, status: str = "owned", db: Session = Depends(get_db)):
     default_status = "wanted" if status == "wanted" else "owned"
     return render(
         "record_form.html", request, db,
         record=None, action="/records", default_status=default_status,
+        currencies=settings.CURRENCIES,
     )
 
 
@@ -201,6 +245,7 @@ def create_record(
     condition: str = Form(""),
     sleeve_condition: str = Form(""),
     purchase_price: str = Form(""),
+    price_currency: str = Form(""),
     discogs_release_id: str = Form(""),
     notes: str = Form(""),
     cover_url: str = Form(""),
@@ -209,8 +254,8 @@ def create_record(
 ):
     data = record_from_form(
         artist, title, label, genre, pressing_year, condition,
-        sleeve_condition, purchase_price, discogs_release_id, notes,
-        cover_url, status,
+        sleeve_condition, purchase_price, price_currency, discogs_release_id, notes,
+        cover_url, status, settings.get_currency(db),
     )
     db.add(models.Record(**data))
     db.commit()
@@ -224,6 +269,7 @@ def edit_record_form(record_id: int, request: Request, db: Session = Depends(get
         "record_form.html", request, db,
         record=record, action=f"/records/{record_id}/update",
         default_status=record.status if record else "owned",
+        currencies=settings.CURRENCIES,
     )
 
 
@@ -238,6 +284,7 @@ def update_record(
     condition: str = Form(""),
     sleeve_condition: str = Form(""),
     purchase_price: str = Form(""),
+    price_currency: str = Form(""),
     discogs_release_id: str = Form(""),
     notes: str = Form(""),
     cover_url: str = Form(""),
@@ -247,8 +294,8 @@ def update_record(
     record = db.get(models.Record, record_id)
     data = record_from_form(
         artist, title, label, genre, pressing_year, condition,
-        sleeve_condition, purchase_price, discogs_release_id, notes,
-        cover_url, status,
+        sleeve_condition, purchase_price, price_currency, discogs_release_id, notes,
+        cover_url, status, settings.get_currency(db),
     )
     for key, value in data.items():
         setattr(record, key, value)

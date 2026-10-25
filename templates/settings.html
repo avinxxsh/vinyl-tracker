@@ -6,9 +6,12 @@
   {% if request.query_params.get('saved') %}
     <p class="flash">Saved.</p>
   {% endif %}
+  {% if request.query_params.get('rates_refreshed') %}
+    <p class="flash">Exchange rates refreshed.</p>
+  {% endif %}
 
   <form method="post" action="/settings" class="record-form">
-    <label>Currency
+    <label>Collection currency
       <select name="currency">
         {% for code, symbol in currencies.items() %}
           <option value="{{ code }}" {% if code == currency_code %}selected{% endif %}>{{ code }} ({{ symbol }})</option>
@@ -21,7 +24,22 @@
   </form>
 
   <p class="help">
-    This sets how prices and totals are displayed across the whole collection.
-    It doesn't convert existing purchase prices &mdash; enter new prices directly in this currency.
+    This sets how prices and totals are displayed. Each record remembers the currency it was actually
+    paid in (set per-record on the Add/Edit form) &mdash; changing this just converts everything for
+    viewing, using live exchange rates, without touching what you originally entered.
   </p>
+
+  <h3>Exchange rates</h3>
+  <p class="help">
+    {% if rates_updated %}
+      Last updated {{ rates_updated.strftime('%Y-%m-%d %H:%M UTC') }}. Rates refresh automatically every 12 hours
+      whenever a conversion is needed.
+    {% else %}
+      Not fetched yet &mdash; rates are pulled automatically the first time a record's currency differs
+      from your collection currency.
+    {% endif %}
+  </p>
+  <form method="post" action="/settings/refresh-rates">
+    <button type="submit" class="secondary">Refresh exchange rates now</button>
+  </form>
 {% endblock %}
